@@ -1,34 +1,43 @@
-import qiskit
-from qiskit import QuantumCircuit, execute
-from qiskit.providers.aer import Aer
+from qiskit import QuantumCircuit, transpile
+from qiskit_aer import AerSimulator
 import numpy as np
 
 class QuantumEnvironment:
     def __init__(self, num_qubits=2):
-        # Here we are going to initialize the quantum environment with the given number of qubits
+        # Initialize the quantum environment with the given number of qubits
         self.num_qubits = num_qubits
         self.circuit = QuantumCircuit(self.num_qubits)
         self.state = None  # This holds the state representation
         self.max_steps = 100  # This represents the maximum steps per episode
         self.current_step = 0
 
-        # Backend for the simulation
-        self.backend = Aer.get_backend('statevector_simulator')
+        # Backend for the simulation using AerSimulator
+        self.simulator = AerSimulator()
 
     def reset(self):
-        # This is going to reset the quantum circuit and the step counter
+        # Reset the quantum circuit and the step counter
         self.circuit = QuantumCircuit(self.num_qubits)
+        self.circuit.save_statevector()  # Save the statevector only once
         self.current_step = 0
 
-        # Then we need to return the initial state (which can be the statevector or a simple representation)
+        # Get the initial state (statevector or simple representation)
         self.state = self.get_state()
         return self.state
 
     def get_state(self):
-        # Execute the circuit and get the state vector
-        job = execute(self.circuit, self.backend)
+        # Transpile the circuit using the qiskit.transpile function
+        transpiled_circuit = transpile(self.circuit, self.simulator)
+
+        # Run the simulation and get the result
+        job = self.simulator.run(transpiled_circuit)
         result = job.result()
-        statevector = result.get_statevector()
+
+        # Extract the statevector from the result
+        try:
+            statevector = result.get_statevector()
+        except Exception as e:
+            print(f"Error in retrieving statevector: {e}")
+            statevector = np.zeros(2 ** self.num_qubits)
 
         # Return the real part of the statevector as the state representation
         return np.real(statevector)
@@ -58,13 +67,18 @@ class QuantumEnvironment:
         elif action == 1:
             self.circuit.h(0)  # Apply H gate to the first qubit
         elif action == 2:
-            self.circuit.rz(np.pi / 4, 0)  # Apply RZ gate with pi/4 rotation to the first qubit
+            self.circuit.rz(np.pi / 4, 0)  # Apply RZ gate with π/4 rotation to the first qubit
 
     def calculate_reward(self):
-        # For simple measures, I'm going to use the fidelity of the state as the reward
+        # For simple measures, use the fidelity of the state as the reward
         target_state = np.array([1, 0, 0, 0])  # Example target state (|00> state)
         current_state = self.get_state()
 
-        # Calculate the fidelity as the reward using the complex conjugate
-        fidelity = np.abs(np.dot(np.conj(target_state), current_state)) ** 2
+        # Calculate the fidelity as the reward
+        try:
+            fidelity = np.dot(target_state, current_state) ** 2
+        except Exception as e:
+            print(f"Error in reward calculation: {e}")
+            fidelity = 0.0
+
         return fidelity
