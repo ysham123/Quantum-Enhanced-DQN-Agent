@@ -1,4 +1,4 @@
-# AI-Driven Quantum Circuit Optimization
+# Enhanced-DQN-Agent
 
 This project implements a Deep Q-Learning (DQN) agent to optimize quantum circuits using reinforcement learning.
 
